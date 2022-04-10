@@ -73,14 +73,12 @@ function displayMovements(movements) {
     containerMovements.insertAdjacentHTML("afterbegin", html);
   });
 }
-displayMovements(account1.movements);
 
-function showBalance(movements) {
-  const balance = movements.reduce((acc, mov) => acc + mov, 0);
-  console.log(balance);
-  labelBalance.textContent = `${balance} €`;
+function showBalance(acc) {
+  acc.balance = acc.movements.reduce((acc, mov) => acc + mov, 0);
+  //console.log(balance);
+  labelBalance.textContent = `${acc.balance} €`;
 }
-showBalance(account1.movements);
 
 function calcDepositsinUSD(movements) {
   const depositsUSD = movements
@@ -91,29 +89,28 @@ function calcDepositsinUSD(movements) {
 }
 //calcDepositsinUSD(account1.movements);
 
-function displaySummaryIn(movements) {
-  const incomes = movements
+function displaySummary(acc) {
+  const incomes = acc.movements
     .filter((mov) => mov > 0)
     .reduce((acc, mov) => acc + mov, 0);
   labelSumIn.textContent = `${incomes}€`;
 
-  const out = movements
+  const out = acc.movements
     .filter((mov) => mov < 0)
     .reduce((acc, mov) => acc + mov, 0);
-  console.log(out);
+  //console.log(out);
   labelSumOut.textContent = `${Math.abs(out)}€`;
 
-  const interestSum = movements
+  const interestSum = acc.movements
     .filter((mov) => mov > 0)
-    .map((deposit) => (deposit * 1.2) / 100)
+    .map((deposit) => (deposit * acc.interestRate) / 100)
     .filter((interest, i, arr) => {
-      console.log(arr);
+      //console.log(arr);
       return interest >= 1;
     })
     .reduce((acc, interest) => acc + interest, 0);
   labelSumInterest.textContent = `${interestSum}€`;
 }
-displaySummaryIn(account1.movements);
 
 function createUserNames(accs) {
   accs.forEach(function (acc) {
@@ -126,3 +123,95 @@ function createUserNames(accs) {
   });
 }
 createUserNames(accounts);
+
+function updateUI() {
+  displayMovements(currentAccount.movements);
+  showBalance(currentAccount);
+  displaySummary(currentAccount);
+}
+
+//login
+let currentAccount;
+btnLogin.addEventListener("click", function (e) {
+  e.preventDefault();
+
+  currentAccount = accounts.find(
+    (acc) => acc.username === inputLoginUsername.value
+  );
+  console.log(currentAccount);
+
+  if (currentAccount?.pin === Number(inputLoginPin.value)) {
+    labelWelcome.textContent = `Welcome back, ${
+      currentAccount.owner.split(" ")[0]
+    }`;
+  }
+
+  containerApp.style.opacity = 100;
+
+  inputLoginUsername.value = inputLoginPin.value = "";
+  inputLoginPin.blur(); //lose focus
+
+  updateUI();
+});
+
+//transfer
+btnTransfer.addEventListener("click", function (e) {
+  e.preventDefault();
+
+  const amount = Number(inputTransferAmount.value);
+  const reciver = accounts.find(
+    (acc) => acc.username === inputTransferTo.value
+  );
+  console.log(amount, reciver);
+
+  if (
+    amount > 0 &&
+    amount <= currentAccount.balance &&
+    reciver &&
+    reciver.username !== currentAccount.username
+  ) {
+    currentAccount.movements.push(-amount);
+    reciver.movements.push(amount);
+
+    updateUI();
+  }
+
+  inputTransferAmount.value = inputTransferTo.value = "";
+});
+
+//loan
+btnLoan.addEventListener("click", function (e) {
+  e.preventDefault();
+  const amountLoan = Number(inputLoanAmount.value);
+
+  if (
+    amountLoan > 0 &&
+    currentAccount.movements.some((mov) => mov >= amountLoan * 0.1)
+  ) {
+    currentAccount.movements.push(amountLoan);
+    updateUI();
+  }
+  inputLoanAmount.value = "";
+});
+
+//close account
+btnClose.addEventListener("click", function (e) {
+  e.preventDefault();
+
+  if (
+    inputCloseUsername.value === currentAccount.username &&
+    Number(inputClosePin.value) === currentAccount.pin
+  ) {
+    let index = accounts.findIndex(
+      (acc) => acc.username === currentAccount.username
+    );
+    console.log(index);
+
+    // delete account
+    accounts.splice(index, 1);
+
+    //hide UI
+    containerApp.style.opacity = 0;
+  }
+  inputCloseUsername.value = inputClosePin.value = "";
+});
